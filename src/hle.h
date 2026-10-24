@@ -27,6 +27,10 @@ public:
     void setNvram(const std::vector<uint8_t> *nv) { nv_ = nv; }
     // The aim speed (1 normal): the stick's range, the aim keys' and the mouse's pace.
     void setAimSpeed(float k) { aimSpeed_ = k; }
+    // Presses from a development script (main.cpp --script), on top of the controls.
+    uint8_t scriptButtons = 0;          // the game's button bits, START (80h) too
+    bool scriptCoin = false;
+    float scriptStick[2][2] = { { 0, 0 }, { 0, 0 } };   // per stick: x, y (-1..1), added
     void reset(uint8_t *dp);
     void vblank(uint8_t *dp);
     void write(uint8_t *dp, int offset, uint8_t data);

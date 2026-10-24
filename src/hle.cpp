@@ -60,6 +60,10 @@ void Mcu::vblank(uint8_t *dp)
         if (vp_input_held(in_, "coin2")) coinsHeld |= 0x08;
         if (vp_input_pressed(in_, "coin1")) coinsIn |= 0x10;
         if (vp_input_pressed(in_, "coin2")) coinsIn |= 0x08;
+        static bool lastCoin = false;   // the script's coin: inserted as it goes down
+        if (scriptCoin) { coinsHeld |= 0x10; if (!lastCoin) coinsIn |= 0x10; }
+        lastCoin = scriptCoin;
+        buttons |= scriptButtons;
         // Each stick: its axes, then the keys that push it (aim_up ...:
         // profile.cpp) like a stick that springs back to the center when
         // released (as MAME does for analog controls), and the mouse or
@@ -77,8 +81,8 @@ void Mcu::vblank(uint8_t *dp)
         const float CENTERED = 0.1f;
         for (size_t k = 0; k < game.nsticks && k < MAX_STICKS; k++) {
             const Stick &st = game.sticks[k];
-            x[k] = vp_input_axis(in_, st.axisX);
-            y[k] = -vp_input_axis(in_, st.axisY);      // up (the axis's negative side) is +
+            x[k] = vp_input_axis(in_, st.axisX) + scriptStick[k][0];
+            y[k] = -vp_input_axis(in_, st.axisY) + scriptStick[k][1];      // up (the axis's negative side) is +
             // Calibrated as it goes: the furthest each way so far is all the
             // way over (one yoke reports half its axis, another all of it).
             auto calibrated = [](float v, float *reach) {

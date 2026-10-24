@@ -36,6 +36,10 @@ public:
     ~Machine();
 
     void reset();
+    // Switched off and on: its memory cleared (not the NVRAM), then reset;
+    // the game boots as from cold (a reset alone finds its RAM set up and
+    // takes a shorter way).
+    void powerOn();
     // One video frame: the visible part, then vertical blank.
     void runFrame();
     long frame() const { return frame_; }      // frames since reset, as MAME's frame_number

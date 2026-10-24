@@ -2,6 +2,7 @@
 // common_map / master_map / slave_map) and the C148 interrupt controllers.
 #include "machine.h"
 
+#include <algorithm>
 #include <cstring>
 
 #include "hle.h"
@@ -124,6 +125,17 @@ void Machine::reset()
     sound_.reset(true);
     subcpusHeld_ = false;
     subcpuReset(true);
+}
+
+void Machine::powerOn()
+{
+    for (auto *v : { &mainRam_, &slaveRam_, &sharedRam_, &spriteram_, &palette_, &paletteExt_, &c139Ram_ })
+        std::fill(v->begin(), v->end(), 0);
+    memset(dspram_, 0, sizeof dspram_);
+    memset(dpram_, 0, sizeof dpram_);
+    memset(spritePos_, 0, sizeof spritePos_);
+    videoEnable_ = 0;
+    reset();
 }
 
 void Machine::state(State &s)

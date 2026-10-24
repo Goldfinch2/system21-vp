@@ -81,6 +81,15 @@ int rowExit() { return nfunctions() + 1 + (canLink() ? 1 : 0); }
 int rows() { return rowExit() + 1; }
 const int KEY_TAB = 43, KEY_DELETE = 76, KEY_KP_PERIOD = 99, KEY_F5 = 62, KEY_F7 = 64;   // SDL scancodes
 
+// Development (S21_DEV 1): --script FILE, presses at given frames, for
+// testing what needs players (two linked copies...). Lines "<frame> <action>":
+// coin, start, gun, missile (held 10 frames), up/down/left/right (stick 1,
+// held 20), up2/down2/left2/right2 (stick 2), shot (the picture,
+// save/shot_<frame>.png).
+struct ScriptStep { long frame; std::string action; };
+std::vector<ScriptStep> g_script;
+std::vector<long> g_shots;
+
 struct Game {
     std::string romPath;
     bool spriteIds = false;
@@ -539,7 +548,7 @@ void linkCabinet(Game &s)
         nv[n] = (uint8_t)sum;
     }
     saveNvram(nv);
-    s.machine->reset();
+    s.machine->powerOn();
     s.dsp.clearStarts();
 }
 
@@ -613,6 +622,28 @@ void update(vp_game *g, float)
         for (int k = 0; k < 100 && booting(s); k++) s.machine->runFrame();
         return;
     }
+    if (DEV) {  // --script: its presses this frame
+        const long f = s.machine->frame();
+        uint8_t b = 0; bool coin = false; float st[2][2] = { { 0, 0 }, { 0, 0 } };
+        for (const ScriptStep &e : g_script) {
+            const long age = f - e.frame;
+            const bool btn = age >= 0 && age < 10, stk = age >= 0 && age < 20;
+            if (btn && e.action == "coin") coin = true;
+            if (btn && e.action == "start") b |= 0x80;
+            if (btn && e.action == "gun") b |= 0x20;
+            if (btn && e.action == "missile") b |= 0x10;
+            for (int k = 0; k < 2; k++) {
+                const std::string sfx = k ? "2" : "";
+                if (stk && e.action == "up" + sfx) st[k][1] = 1;
+                if (stk && e.action == "down" + sfx) st[k][1] = -1;
+                if (stk && e.action == "left" + sfx) st[k][0] = -1;
+                if (stk && e.action == "right" + sfx) st[k][0] = 1;
+            }
+        }
+        s.mcu.scriptButtons = b;
+        s.mcu.scriptCoin = coin;
+        memcpy(s.mcu.scriptStick, st, sizeof st);
+    }
     s.machine->runFrame();
     if (DEV && !s.dumpDir.empty()) dump(s);
 }
@@ -641,6 +672,13 @@ void draw(vp_game *g, vp_dvg *d)
         // The sprites first: the HUD's panels they find hide the 3D.
         s.sprites->draw(d, *s.machine);
         s.render3d->draw(d, s.dsp.finished(), *s.machine, s.sprites->hides());
+        static size_t nextShot = 0;   // --script: its pictures
+        if (nextShot < g_shots.size() && s.machine->frame() >= g_shots[nextShot]) {
+            char name[64];
+            snprintf(name, sizeof name, "/shot_%06ld.png", s.machine->frame());
+            vp_dvg_save_png(d, (std::string(vp_save_dir()) + name).c_str(), 512, 384);
+            nextShot++;
+        }
     }
     if (!s.stateSaid.empty() && vp_game_time(g) < s.stateSaidUntil) {
         vp_text_font(VP_FONT_ASTEROIDS);
@@ -669,6 +707,21 @@ int main(int argc, char **argv)
     for (int i = 0; i < argc; i++) {
         if (i > 0 && !strcmp(argv[i], "--roms") && i + 1 < argc) { game.romPath = argv[++i]; continue; }
         if (i > 0 && !strcmp(argv[i], "--game") && i + 1 < argc) { profile_choose(argv[++i]); continue; }
+        if (i > 0 && !strcmp(argv[i], "--script") && i + 1 < argc) {
+            FILE *f = fopen(argv[++i], "r");
+            if (f && !DEV) { fclose(f); f = nullptr; }      // a development tool
+            if (f) {
+                char line[128], act[64];
+                long fr;
+                while (fgets(line, sizeof line, f))
+                    if (sscanf(line, "%ld %63s", &fr, act) == 2) {
+                        if (!strcmp(act, "shot")) g_shots.push_back(fr);
+                        else g_script.push_back({ fr, act });
+                    }
+                fclose(f);
+            }
+            continue;
+        }
         if (i > 0 && !strcmp(argv[i], "--sprite-ids")) { game.spriteIds = true; continue; }
         if (i > 0 && !strcmp(argv[i], "--dump") && i + 1 < argc) { game.dumpDir = argv[++i]; continue; }
         if (i > 0 && !strcmp(argv[i], "--record") && i + 1 < argc) { game.recordSeconds = atof(argv[++i]); continue; }
