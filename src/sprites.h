@@ -61,6 +61,8 @@ private:
         const char *text = nullptr; // a tile showing a short word ("OK"): drawn instead of ch
         uint8_t x0, y0, x1, y1;     // the glyph's box in its tile, pixels
         uint8_t pen;                // its main pixel value (its color)
+        uint8_t shades[4];          // its most used pens (a shaded font has several)
+        uint8_t nshades = 0;
     };
 
     // A gauge: a sprite whose first tile is in [lo, hi] is an arc of n

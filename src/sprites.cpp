@@ -99,6 +99,17 @@ Sprites::Sprites(const std::vector<uint8_t> &tiles) : tiles_(tiles), tileCount_(
         unsigned best = 0;
         for (int p = 0; p < 256; p++)
             if (counts[p] > best) { best = counts[p]; g.pen = (uint8_t)p; }
+        // Its four most used pens: how bright the letter is drawn goes by the
+        // brightest of them (a shaded letter has dark pens too).
+        g.nshades = 0;
+        for (int n = 0; n < 4; n++) {
+            int top = -1;
+            for (int p = 0; p < 256; p++)
+                if (counts[p] && (top < 0 || counts[p] > counts[top])) top = p;
+            if (top < 0) break;
+            g.shades[g.nshades++] = (uint8_t)top;
+            counts[top] = 0;
+        }
     };
     const Profile &game = profile();
     for (size_t k = 0; k < game.nfonts; k++)
@@ -314,6 +325,15 @@ void Sprites::draw(vp_dvg *d, const Machine &m)
                 if (rgb >= 0) scaledColor(d, (uint32_t)rgb, darkness(penRgb(pen)));
                 else penColor(pen);
             };
+            // A font letter: as bright as the brightest of its shades (a dim
+            // letter, not selected, is dark in all of them).
+            auto glyphColor = [&](const Glyph &g) {
+                const int32_t rgb = profile().textRgb;
+                if (rgb < 0 || !g.nshades) { textColor(g.pen); return; }
+                float k = 0;
+                for (int n = 0; n < g.nshades; n++) k = std::max(k, darkness(penRgb(g.shades[n])));
+                scaledColor(d, (uint32_t)rgb, k);
+            };
             auto drawTrace = [&](const Trace &t, float ox, float oy) {
                 for (const std::vector<float> &h : t.hides) {
                     std::vector<float> area;
@@ -480,7 +500,7 @@ void Sprites::draw(vp_dvg *d, const Machine &m)
                         else { yb += (height - scaled) * 0.5f; ya = yb + scaled; }
                         height = scaled;
                         const char str[2] = { g.ch, 0 };
-                        textColor(g.pen);
+                        glyphColor(g);
                         if (g.text)
                             vp_text_fit(d, g.text, (xa + xb) * 0.5f, std::min(ya, yb), height, std::fabs(xb - xa),
                                         VP_TEXT_CENTER);
