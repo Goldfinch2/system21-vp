@@ -65,6 +65,14 @@ const GameFunction &function(int i) { return profile().functions[i]; }
 struct AimSpeed { const char *name; float k; };
 const AimSpeed SPEEDS[] = { { "SLOW", 0.6f }, { "NORMAL", 1.0f }, { "FAST", 1.5f }, { "FASTER", 2.0f } };
 const int SPEED_STANDARD = 1;
+// The mouse moves one of the game's sticks (profile.h).
+bool usesMouse()
+{
+    for (size_t k = 0; k < profile().nsticks; k++)
+        if (profile().sticks[k].mouse) return true;
+    return false;
+}
+
 // A game that links two cabinets (profile.h) has a LINK row too: OFF or ON.
 bool canLink() { return profile().linkNvram >= 0; }
 int rowSpeed() { return nfunctions(); }
@@ -505,9 +513,10 @@ int init(vp_game *g)
     loadOptions(s);                             // the aim speed
     applyOptions(s, in);
     s.mcu.setInput(in);
-    // The mouse aims (and its left button fires): captured, so it keeps
-    // counting at the window's edge.
-    vp_input_grab_mouse(vp_game_input(g), 1);
+    // A game whose stick the mouse moves (Star Blade's aim): the mouse
+    // captured, so it keeps counting at the window's edge. Another (Cyber
+    // Sled) leaves it free: two linked copies on one PC need it.
+    vp_input_grab_mouse(vp_game_input(g), usesMouse());
     s.sound.open(vp_game_audio(g), s.roms, s.machine->dpram());
     s.machine->reset();
     return VP_OK;
@@ -595,7 +604,7 @@ void update(vp_game *g, float)
         s.paused = !s.paused;
         vp_audio_set_master(vp_game_audio(g), s.paused ? 0.0f : 1.0f);
         if (DEV && s.paused) capture(s, vp_game_output(g));
-        vp_input_grab_mouse(vp_game_input(g), !s.paused);   // the desktop's while paused
+        vp_input_grab_mouse(vp_game_input(g), !s.paused && usesMouse());   // the desktop's while paused
     }
     if (s.paused) return;
     // The boot self test (RAM, ROMs, waiting on the DSPs): run through it
