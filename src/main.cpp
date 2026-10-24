@@ -668,6 +668,15 @@ void draw(vp_game *g, vp_dvg *d)
             char name[64];
             snprintf(name, sizeof name, "/shot_%06ld.png", s.machine->frame());
             vp_dvg_save_png(d, (std::string(vp_save_dir()) + name).c_str(), 512, 384);
+            // and the sprite RAM with the C355's position words (as the MAME
+            // captures: spr_<frame>.bin), to look for sprites not traced
+            snprintf(name, sizeof name, "/spr_%06ld.bin", s.machine->frame());
+            if (FILE *f = fopen((std::string(vp_save_dir()) + name).c_str(), "wb")) {
+                const uint16_t *ram = s.machine->spriteram(), *pos = s.machine->spritePosition();
+                for (int i = 0; i < 0x10000; i++) { uint8_t b[2] = { (uint8_t)(ram[i] >> 8), (uint8_t)ram[i] }; fwrite(b, 1, 2, f); }
+                for (int i = 0; i < 4; i++) { uint8_t b[2] = { (uint8_t)(pos[i] >> 8), (uint8_t)pos[i] }; fwrite(b, 1, 2, f); }
+                fclose(f);
+            }
             nextShot++;
         }
     }
