@@ -476,6 +476,13 @@ int init(vp_game *g)
     return VP_OK;
 }
 
+// Still in the boot self test: until the game has started its DSPs as many
+// times as its profile says, BOOT_FRAMES at most.
+bool booting(const Game &s)
+{
+    return s.machine->frame() < BOOT_FRAMES && s.dsp.starts() < profile().bootStarts;
+}
+
 void update(vp_game *g, float)
 {
     Game &s = *(Game *)vp_game_user(g);
@@ -531,9 +538,9 @@ void update(vp_game *g, float)
     }
     if (s.paused) return;
     // The boot self test (RAM, ROMs, waiting on the DSPs): run through it
-    // at full speed, not shown, up to the game starting its DSPs.
-    if (!s.dsp.running() && s.machine->frame() < BOOT_FRAMES) {
-        for (int k = 0; k < 100 && !s.dsp.running(); k++) s.machine->runFrame();
+    // at full speed, not shown.
+    if (booting(s)) {
+        for (int k = 0; k < 100 && booting(s); k++) s.machine->runFrame();
         return;
     }
     s.machine->runFrame();
@@ -543,7 +550,7 @@ void update(vp_game *g, float)
 void draw(vp_game *g, vp_dvg *d)
 {
     Game &s = *(Game *)vp_game_user(g);
-    if (s.machine && !s.dsp.running() && s.machine->frame() < BOOT_FRAMES) return;   // the self test: not shown
+    if (s.machine && booting(s)) return;   // the self test: not shown
     if (!s.machine) {
         vp_color(d, 255, 80, 80);
         // the game's name, its zip, in capitals: STAR BLADE, STARBLAD.ZIP

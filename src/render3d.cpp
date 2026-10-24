@@ -91,8 +91,8 @@ const int MAX_STREAKS = 15;
 const int FLOOR_CELLS = 10;
 const float SLED_NEAR = 600.0f;
 const float FLOOR_LIFT = 5.0f;          // over the ground's faces and the markings on them
-const uint8_t FLOOR_RGB[3] = { 15, 20, 30 };   // the floor grid: dim, under everything
-const float FLOOR_DIM = 0.3f;           // the drawings on the floor: their colors this bright
+const uint8_t FLOOR_RGB[3] = { 20, 26, 40 };   // the floor grid: dim, under everything
+const float FLOOR_DIM = 0.38f;          // the drawings on the floor: their colors this bright
 const float FLAT = 2.0f;
 const float HUD_Z = 20.0f;              // the HUD's screens: just past the near plane (16)                // a model this thin, or less: drawn flat on the floor
 

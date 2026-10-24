@@ -82,6 +82,11 @@ struct Profile {
     // Depth cueing (the board darkened polygons by depth): full brightness up
     // to fogStart, fogFloor of it from fogEnd on (world units); fogEnd 0: none.
     float fogStart, fogEnd, fogFloor;
+    // The boot self test runs (fast, not shown) until the game has started
+    // its DSPs this many times since power-on (Star Blade once, at the end of
+    // its test; Cyber Sled twice during it, then again as the game begins,
+    // after resetting the DSP board).
+    int bootStarts;
 };
 
 // The game this package is: from game.ini's [system21] game, Star Blade if

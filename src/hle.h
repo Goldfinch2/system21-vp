@@ -67,11 +67,14 @@ public:
     void write(uint16_t *ram, int word);
     void vblank(uint16_t *ram);
     const Frame &finished() const { return frame_; }
-    // The game has started the DSPs (the end of its boot self test).
+    // The game has started the DSPs (the end of its boot self test), and how
+    // many times since power-on (a reset of the DSP board does not count back).
     bool running() const { return running_; }
+    int starts() const { return starts_; }
     void state(State &s);
 
 private:
     Frame frame_;
     bool running_ = false;
+    int starts_ = 0;                // since power-on: not cleared by reset()
 };

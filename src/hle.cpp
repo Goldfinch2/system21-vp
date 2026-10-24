@@ -184,6 +184,7 @@ void Dsp::state(State &s)
     s.bytes(frame_.camera, sizeof frame_.camera);
     s.vec(frame_.list, true);
     s.pod(running_);
+    s.pod(starts_);
 }
 
 void Dsp::reset()
@@ -228,5 +229,6 @@ void Dsp::vblank(uint16_t *ram)
     if (ram[0x101] == 0xffff) {                     // 0x200202: running
         ram[0x101] = 0;
         running_ = true;
+        if (starts_ < 1000) starts_++;
     }
 }
