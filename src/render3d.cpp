@@ -94,6 +94,7 @@ const float FLOOR_LIFT = 5.0f;          // over the ground's faces and the marki
 const uint8_t FLOOR_RGB[3] = { 20, 26, 40 };   // the floor grid: dim, under everything
 const float FLOOR_DIM = 0.38f;          // the drawings on the floor: their colors this bright
 const float FLAT = 2.0f;                // a model this thin, or less: drawn flat on the floor
+const bool FLOOR_DRAWINGS = false;      // the drawings on the floor (stripes, triangles): off, the grid only
 const float SMALL_SQUARE = 160.0f;      // a flat square this wide or less: one of the floor's small squares, left out
 const uint16_t SHADOW_COLOR = 0x2ba;    // the sleds' shadows' color word (Cyber Sled): kept, small as they are
 const float HUD_Z = 20.0f;              // the HUD's screens: just past the near plane (16)
@@ -164,6 +165,7 @@ Render3d::Model &Render3d::model(int code)
                 const float w = x1 - x0, d = z1 - z0;
                 if (f.color != SHADOW_COLOR && w <= SMALL_SQUARE && d <= SMALL_SQUARE && w <= 2 * d && d <= 2 * w)
                     continue;
+                if (f.color != SHADOW_COLOR && !FLOOR_DRAWINGS) continue;   // a simple floor: the grid only
                 for (size_t i = 0; i < f.corners.size(); i++) {
                     const int a = f.corners[i], b = f.corners[(i + 1) % f.corners.size()];
                     if (seen.insert({ std::min(a, b), std::max(a, b) }).second)
