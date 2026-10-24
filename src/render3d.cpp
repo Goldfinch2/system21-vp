@@ -94,6 +94,7 @@ const float FLOOR_LIFT = 5.0f;          // over the ground's faces and the marki
 const uint8_t FLOOR_RGB[3] = { 20, 26, 40 };   // the floor grid: dim, under everything
 const float FLOOR_DIM = 0.38f;          // the drawings on the floor: their colors this bright
 const float FLAT = 2.0f;                // a model this thin, or less: drawn flat on the floor
+const bool FLOOR_GRID = false;          // the floor's grid: off (no floor drawn)
 const bool FLOOR_DRAWINGS = false;      // the drawings on the floor (stripes, triangles): off, the grid only
 const float SMALL_SQUARE = 160.0f;      // a flat square this wide or less: one of the floor's small squares, left out
 const uint16_t SHADOW_COLOR = 0x2ba;    // the sleds' shadows' color word (Cyber Sled): kept, small as they are
@@ -324,7 +325,7 @@ void Render3d::draw(vp_dvg *d, const Dsp::Frame &frame, const Machine &machine,
     // grey square, model 239 or 240, the drawings on it flat models: all
     // drawn as outlines, model()). The pieces standing on it hide it.
     float floorY, offX, offZ;
-    if (findFloor(list, floorY, offX, offZ)) {
+    if (FLOOR_GRID && findFloor(list, floorY, offX, offZ)) {
         const float cell = (float)profile().floorCell, span = FLOOR_CELLS * cell, y = floorY + FLOOR_LIFT;
         vp_color(d, FLOOR_RGB[0], FLOOR_RGB[1], FLOOR_RGB[2]);
         for (int k = -FLOOR_CELLS; k <= FLOOR_CELLS; k++) {
