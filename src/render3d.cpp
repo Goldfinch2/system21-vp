@@ -183,12 +183,15 @@ Render3d::Model &Render3d::model(int code)
     }
     for (const vp_vec3 &v : rom.verts) vp3d_mesh_vertex(m.mesh, v.x, v.y, v.z);
     for (const SbModel::Face &f : rom.faces) {
-        vp3d_mesh_face(m.mesh, f.corners.data(), (int)f.corners.size());
-        m.entry.push_back(entryOf(f.color));
         // Where the game has a floor: a face lying flat at the model's foot
-        // is a drawing on the ground (the walls' painted bases).
+        // is a drawing on the ground (the walls' painted bases): dimmed, or
+        // left out with the floor's drawings off (its edges with the walls
+        // are still the walls').
         bool ground = profile().floorCell > 0;
         for (int c : f.corners) ground = ground && rom.verts[c].y - m.minY <= FLAT;
+        if (ground && !FLOOR_DRAWINGS) continue;
+        vp3d_mesh_face(m.mesh, f.corners.data(), (int)f.corners.size());
+        m.entry.push_back(entryOf(f.color));
         m.ground.push_back(ground);
     }
     if (vp3d_mesh_finish(m.mesh) != VP_OK) {
