@@ -39,6 +39,11 @@ private:
     static const int MAX_STICKS = 2;
     float keyX_[MAX_STICKS] = {}, keyY_[MAX_STICKS] = {};   // a stick as its keys push it (-1..1)
     float mouseX_ = 0, mouseY_ = 0;   // and as the mouse / trackball moves it
+    // How far each stick's axes have gone each way (X-, X+, Y-, Y+): that is
+    // all the way over (yokes of one model report different travels).
+    float reach_[MAX_STICKS][4] = { { REACH_START, REACH_START, REACH_START, REACH_START },
+                                    { REACH_START, REACH_START, REACH_START, REACH_START } };
+    static constexpr float REACH_START = 0.5f;
     float aimSpeed_ = 1.0f;
 };
 

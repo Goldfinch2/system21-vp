@@ -79,6 +79,15 @@ void Mcu::vblank(uint8_t *dp)
             const Stick &st = game.sticks[k];
             x[k] = vp_input_axis(in_, st.axisX);
             y[k] = -vp_input_axis(in_, st.axisY);      // up (the axis's negative side) is +
+            // Calibrated as it goes: the furthest each way so far is all the
+            // way over (one yoke reports half its axis, another all of it).
+            auto calibrated = [](float v, float *reach) {
+                float &r = reach[v < 0 ? 0 : 1];
+                r = std::max(r, std::fabs(v));
+                return v / r;
+            };
+            x[k] = calibrated(x[k], reach_[k]);
+            y[k] = calibrated(y[k], reach_[k] + 2);
             float kx = held(st.right) - held(st.left);
             float ky = held(st.up) - held(st.down);
             if (std::fabs(x[k]) > CENTERED) kx = 0;
