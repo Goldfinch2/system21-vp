@@ -93,8 +93,10 @@ const float SLED_NEAR = 600.0f;
 const float FLOOR_LIFT = 5.0f;          // over the ground's faces and the markings on them
 const uint8_t FLOOR_RGB[3] = { 20, 26, 40 };   // the floor grid: dim, under everything
 const float FLOOR_DIM = 0.38f;          // the drawings on the floor: their colors this bright
-const float FLAT = 2.0f;
-const float HUD_Z = 20.0f;              // the HUD's screens: just past the near plane (16)                // a model this thin, or less: drawn flat on the floor
+const float FLAT = 2.0f;                // a model this thin, or less: drawn flat on the floor
+const float SMALL_SQUARE = 160.0f;      // a flat square this wide or less: one of the floor's small squares, left out
+const uint16_t SHADOW_COLOR = 0x2ba;    // the sleds' shadows' color word (Cyber Sled): kept, small as they are
+const float HUD_Z = 20.0f;              // the HUD's screens: just past the near plane (16)
 
 // An object record's length in words, or 0 (the end, or a type not known).
 size_t recordLength(uint16_t type)
@@ -150,12 +152,24 @@ Render3d::Model &Render3d::model(int code)
         for (const vp_vec3 &v : rom.verts) { lo = std::min(lo, v.y); hi = std::max(hi, v.y); }
         if (hi - lo <= FLAT) {
             std::set<std::pair<int, int>> seen;
-            for (const SbModel::Face &f : rom.faces)
+            for (const SbModel::Face &f : rom.faces) {
+                // The floor's small squares (64 or 128 wide, dotted along the
+                // stripes): left out, for a simpler floor. Not the sleds'
+                // shadows, small too (their color: SHADOW_COLOR).
+                float x0 = 1e9f, x1 = -1e9f, z0 = 1e9f, z1 = -1e9f;
+                for (int c : f.corners) {
+                    x0 = std::min(x0, rom.verts[c].x); x1 = std::max(x1, rom.verts[c].x);
+                    z0 = std::min(z0, rom.verts[c].z); z1 = std::max(z1, rom.verts[c].z);
+                }
+                const float w = x1 - x0, d = z1 - z0;
+                if (f.color != SHADOW_COLOR && w <= SMALL_SQUARE && d <= SMALL_SQUARE && w <= 2 * d && d <= 2 * w)
+                    continue;
                 for (size_t i = 0; i < f.corners.size(); i++) {
                     const int a = f.corners[i], b = f.corners[(i + 1) % f.corners.size()];
                     if (seen.insert({ std::min(a, b), std::max(a, b) }).second)
                         m.lines.push_back({ rom.verts[a], rom.verts[b], entryOf(f.color) });
                 }
+            }
             m.flat = true;
             return m;
         }
