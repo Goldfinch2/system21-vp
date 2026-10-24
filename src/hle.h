@@ -71,6 +71,7 @@ public:
     // many times since power-on (a reset of the DSP board does not count back).
     bool running() const { return running_; }
     int starts() const { return starts_; }
+    void clearStarts() { starts_ = 0; }     // a power-on: the boot counts again
     void state(State &s);
 
 private:

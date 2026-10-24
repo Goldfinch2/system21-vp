@@ -17,8 +17,10 @@
 #include <cstdint>
 #include <vector>
 
+#include "c139.h"
 #include "roms.h"
 
+class Link;
 class Mcu;
 class Sound;
 class Dsp;
@@ -49,6 +51,8 @@ public:
     bool videoEnabled() const { return videoEnable_ & 0x40; }
 
     std::vector<uint8_t> &nvram() { return nvram_; }
+    // The link to another cabinet (the C139: docs/link.md), or null.
+    void setLink(Link *link) { c139_.attach(c139Ram_.data(), link); }
 
     // Save or load the whole machine (its CPUs, memory, C148s, the I/O MCU,
     // the DSP board and the sound board), between frames.
@@ -80,6 +84,7 @@ private:
     uint16_t c148Read(int cpu, uint32_t offset);
     void c148Write(int cpu, uint32_t offset, uint16_t data);
     void spriteramWrite(uint32_t offset, uint16_t data, uint16_t mask);
+    void c139Interrupt();
 
     Roms &roms_;
     Mcu &mcu_;
@@ -102,4 +107,5 @@ private:
     int pointramIdx_ = 0;
     uint16_t pointramControl_ = 0;
     uint8_t depthcue_[2][0x400] = {};
+    C139 c139_;
 };

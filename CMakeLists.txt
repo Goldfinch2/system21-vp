@@ -60,6 +60,8 @@ add_executable(system21_emu
     src/soundboard.cpp
     src/m6809.cpp
     src/c140.cpp
+    src/c139.cpp
+    src/link.cpp
     third_party/ymfm/src/ymfm_opm.cpp
     src/sprites.cpp
     src/roms.cpp
@@ -70,6 +72,9 @@ target_include_directories(system21_emu PRIVATE src third_party/puff)
 target_include_directories(system21_emu SYSTEM PRIVATE third_party/ymfm/src)
 set_source_files_properties(third_party/ymfm/src/ymfm_opm.cpp PROPERTIES COMPILE_OPTIONS -w)
 target_link_libraries(system21_emu PRIVATE musashi)
+if(WIN32)
+    target_link_libraries(system21_emu PRIVATE ws2_32)     # the link's sockets
+endif()
 vp_program(system21_emu)
 
 # ---- the games: one package each, from games/<set>/ ---------------------------------

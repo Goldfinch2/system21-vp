@@ -86,6 +86,7 @@ Machine::Machine(Roms &roms, Mcu &mcu, Sound &sound, Dsp &dsp)
     palette_.assign(0x10000 / 2, 0);
     paletteExt_.assign(0x10000 / 2, 0);
     c139Ram_.assign(0x4000 / 2, 0);
+    c139_.attach(c139Ram_.data(), nullptr);
     pointram_.assign(0x20000, 0);
     nvram_ = roms.nvram;
     mcu_.setNvram(&nvram_);
@@ -115,6 +116,7 @@ void Machine::reset()
         cpu_[i].debt = 0;
     }
     frame_ = 0;
+    c139_.reset();
     select(0);
     m68k_pulse_reset();
     applyIrq(0);
@@ -140,6 +142,7 @@ void Machine::state(State &s)
     s.pod(subcpusHeld_);
     s.vec(mainRam_); s.vec(slaveRam_); s.vec(sharedRam_); s.vec(spriteram_);
     s.vec(palette_); s.vec(paletteExt_); s.vec(c139Ram_);
+    c139_.state(s);
     s.vec(nvram_);
     s.bytes(dspram_, sizeof dspram_);
     s.bytes(dpram_, sizeof dpram_);
@@ -190,6 +193,8 @@ void Machine::runFrame()
     }
     if (!subcpusHeld_) mcu_.vblank(dpram_);
     dsp_.vblank(dspram_);
+    c139_.poll();                       // the other cabinet's packets
+    c139Interrupt();
 
     runCycles((int)(frame - visible));
     frame_++;
@@ -213,6 +218,10 @@ void Machine::runCycles(int cycles)
             applyIrq(i);
             int used = m68k_execute(slice);
             c.debt -= used > 0 ? used : slice;
+            if (i == 1) {                   // the C139 is the slave's
+                c139_.advance(used > 0 ? used : slice);
+                c139Interrupt();
+            }
         }
     }
 }
@@ -363,7 +372,7 @@ uint16_t Machine::read16(int cpu, uint32_t a)
     if (a >= 0x900000 && a < 0x910000) return sharedRam_[(a - 0x900000) >> 1];
     if (a >= 0xa00000 && a < 0xa01000) return dpram_[(a - 0xa00000) >> 1];
     if (a >= 0xb00000 && a < 0xb04000) return c139Ram_[(a - 0xb00000) >> 1];
-    if (a == 0xb80000) return 4;                        // C139 status
+    if (a >= 0xb80000 && a < 0xb80010) return c139_.read((int)(a - 0xb80000) >> 1);   // C139 registers
     if (a >= 0xc00000 && a < 0xe00000) return romWord(roms_.edata, (a - 0xc00000) & 0xfffff);   // 1 MB, twice
     return 0;
 }
@@ -418,6 +427,18 @@ void Machine::write16(int cpu, uint32_t a, uint16_t data, uint16_t mask)
         return;
     }
     if (a >= 0xb00000 && a < 0xb04000) { combine(c139Ram_[(a - 0xb00000) >> 1], data, mask); return; }
+    if (a >= 0xb80000 && a < 0xb80010) {
+        c139_.write((int)(a - 0xb80000) >> 1, data, mask);
+        c139Interrupt();
+        return;
+    }
+}
+
+// The C139's interrupt: the slave's, at the level its C148 gives serial
+// (Cyber Sled: 4), until the game acknowledges it.
+void Machine::c139Interrupt()
+{
+    if (c139_.takeInterrupt() && c148_[1].sciLevel) setLine(1, c148_[1].sciLevel, kAssert);
 }
 
 // The C355 mirrors two windows of its RAM into the first one (MAME's spriteram_w).

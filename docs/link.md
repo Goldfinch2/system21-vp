@@ -89,3 +89,29 @@ The game does all the protocol itself; what is missing is the chip:
 Each cabinet needs its own node number (0 and 1: NVRAM byte `12h`), and the two
 must run in step: the game sends every frame and expects the others' packets
 within a few frames.
+
+## In the port
+
+- `src/c139.cpp`: the chip, as the slave expects it. Status bit 2 is "ready
+  to send" (the chip idle), bit 1 "received" (cleared by a write); the
+  interrupt mask's bits (1 = masked) are set by the chip as it interrupts
+  and cleared by the game to re-arm, as its handler's ANDIs imply. A send
+  takes about 8000 cycles. Packets wait their turn: the next goes into the
+  ring once the game has taken the last.
+- `src/link.cpp`: the network. Each cabinet broadcasts
+  `S21L1 H <set> <id> <port>` every second on UDP port 47121 (and to its
+  own computer, so two copies on one PC link); two running the same game
+  pair up, the lower id cabinet 1 (node 0). A packet is a datagram to the
+  other's port; three seconds without one: unpaired.
+- The CONTROLS page's LINK row (a game with `linkNvram` in its profile):
+  OFF, or ON with how it stands (SEARCHING, CABINET 1, CABINET 2). Kept in
+  `save/options.ini`. Paired, the cabinet's number goes into the NVRAM
+  (byte 12h, the settings' checksum in 16h) and, if it changed, the game
+  restarts (its boot hidden as ever).
+- Off, the chip answers as before (status 4, no interrupt): a lone
+  cabinet plays as it always did.
+
+Checked with two copies on one PC: they pair in about a second, each game
+hears the other (the slave's mask of nodes heard: `10D14Eh`) and keeps
+hearing it; about three packets a frame each way (its own and the other's,
+relayed back round the ring).

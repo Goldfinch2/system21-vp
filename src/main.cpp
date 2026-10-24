@@ -34,6 +34,7 @@
 #include <vectorpie/vp.h>
 
 #include "hle.h"
+#include "link.h"
 #include "machine.h"
 #include "profile.h"
 #include "render3d.h"
@@ -64,9 +65,12 @@ const GameFunction &function(int i) { return profile().functions[i]; }
 struct AimSpeed { const char *name; float k; };
 const AimSpeed SPEEDS[] = { { "SLOW", 0.6f }, { "NORMAL", 1.0f }, { "FAST", 1.5f }, { "FASTER", 2.0f } };
 const int SPEED_STANDARD = 1;
+// A game that links two cabinets (profile.h) has a LINK row too: OFF or ON.
+bool canLink() { return profile().linkNvram >= 0; }
 int rowSpeed() { return nfunctions(); }
-int rowExit() { return nfunctions() + 1; }
-int rows() { return nfunctions() + 2; }
+int rowLink() { return canLink() ? nfunctions() + 1 : -1; }
+int rowExit() { return nfunctions() + 1 + (canLink() ? 1 : 0); }
+int rows() { return rowExit() + 1; }
 const int KEY_TAB = 43, KEY_DELETE = 76, KEY_KP_PERIOD = 99, KEY_F5 = 62, KEY_F7 = 64;   // SDL scancodes
 
 struct Game {
@@ -83,6 +87,8 @@ struct Game {
     std::unique_ptr<Machine> machine;
     std::unique_ptr<Render3d> render3d;
     std::unique_ptr<Sprites> sprites;
+    Link link;                          // to another cabinet (LINK ON: docs/link.md)
+    bool linkOn = false;
     // The CONTROLS page: open (the game stands still), the cursor's row
     // (the aim speed, then EXIT, after the functions), a function being laid out,
     // what the page says; the aim speed.
@@ -167,6 +173,13 @@ void applyOptions(Game &s, vp_input *in)
 {
     vp_input_set_deadzone(in, 0.0f);
     s.mcu.setAimSpeed(SPEEDS[s.speed].k);
+    // The link: looking for the other cabinet while ON.
+    const bool want = s.linkOn && canLink();
+    if (want && !s.link.isOpen()) {
+        if (!s.link.open(profile().set)) fprintf(stderr, "system21: link: %s\n", s.link.error().c_str());
+    } else if (!want && s.link.isOpen()) {
+        s.link.close();
+    }
 }
 
 void saveOptions(Game &s)
@@ -174,6 +187,7 @@ void saveOptions(Game &s)
     FILE *f = fopen(optionsPath().c_str(), "w");
     if (!f) { fprintf(stderr, "system21: cannot write %s\n", optionsPath().c_str()); return; }
     fprintf(f, "# %s: the CONTROLS page's settings\naim_speed = %s\n", profile().title, SPEEDS[s.speed].name);
+    if (canLink()) fprintf(f, "link = %s\n", s.linkOn ? "ON" : "OFF");
     fclose(f);
 }
 
@@ -187,6 +201,7 @@ void loadOptions(Game &s)
             for (int i = 0; i < (int)(sizeof SPEEDS / sizeof SPEEDS[0]); i++)
                 if (!strcmp(SPEEDS[i].name, value)) s.speed = i;
         }
+        if (sscanf(line, " link = %63s", value) == 1) s.linkOn = !strcmp(value, "ON");
     }
     fclose(f);
 }
@@ -258,6 +273,12 @@ void controlsPage(Game &s, vp_game *g)
             if (vp_input_key_pressed(in, KEY_DELETE) || vp_input_key_pressed(in, KEY_KP_PERIOD))
                 s.speed = SPEED_STANDARD;
             if (s.speed != was) { applyOptions(s, in); saveOptions(s); }
+        } else if (s.ctlRow == rowLink()) {
+            const bool was = s.linkOn;
+            if (left || right) s.linkOn = !s.linkOn;
+            if (vp_input_key_pressed(in, KEY_DELETE) || vp_input_key_pressed(in, KEY_KP_PERIOD))
+                s.linkOn = false;
+            if (s.linkOn != was) { applyOptions(s, in); saveOptions(s); }
         } else if (vp_input_menu_confirm(in)) {
             closeControls(s, g);
             return;
@@ -297,6 +318,18 @@ void drawControls(const Game &s, vp_game *g, vp_dvg *d)
             vp_text(d, SPEEDS[s.speed].name, 1900, y, 90 * size, VP_TEXT_LEFT);
             continue;
         }
+        if (i == rowLink()) {
+            // OFF, or ON and how it stands: looking, linked as cabinet 1 or 2
+            vp_text(d, "LINK", 450, y, 90 * size, VP_TEXT_LEFT);
+            const char *state = !s.linkOn ? "OFF"
+                              : !s.link.isOpen() ? "NO NETWORK"
+                              : !s.link.paired() ? "SEARCHING"
+                              : s.link.cabinet() == 0 ? "CABINET 1" : "CABINET 2";
+            if (!s.linkOn) vp_color(d, 150, 150, 150);
+            else if (!sel) vp_color(d, 120, 255, 120);
+            vp_text(d, state, 1900, y, 90 * size, VP_TEXT_LEFT);
+            continue;
+        }
         vp_text(d, function(i).label, 450, y, 90 * size, VP_TEXT_LEFT);
         if (sel && s.capture.capturing) {
             if ((int)(vp_game_time(g) * 3) % 2 == 0) {
@@ -320,6 +353,9 @@ void drawControls(const Game &s, vp_game *g, vp_dvg *d)
     vp_color(d, 160, 160, 160);
     if (s.ctlRow == rowSpeed()) {
         vp_text(d, "LEFT, RIGHT - CHANGE   DEL - STANDARD", 2048, 620, 75, VP_TEXT_CENTER);
+    } else if (s.ctlRow == rowLink()) {
+        vp_text(d, "LEFT, RIGHT - ON OR OFF: ON ON BOTH CABINETS", 2048, 680, 75, VP_TEXT_CENTER);
+        vp_text(d, "THEY FIND EACH OTHER ON THE NETWORK", 2048, 550, 75, VP_TEXT_CENTER);
     } else if (s.ctlRow < nfunctions() || s.capture.capturing) {
         const char *one, *two;
         vp_capture_help(&s.capture, &one, &two);
@@ -441,6 +477,7 @@ int init(vp_game *g)
         return VP_OK;                   // shown on screen, then back to the menu
     }
     s.machine = std::make_unique<Machine>(s.roms, s.mcu, s.sound, s.dsp);
+    s.machine->setLink(&s.link);
     loadNvram(s.machine->nvram());
     s.render3d = std::make_unique<Render3d>();
     if (s.render3d->open(s.roms.points) != VP_OK) {
@@ -476,6 +513,27 @@ int init(vp_game *g)
     return VP_OK;
 }
 
+// Linked: this cabinet's number (the link's: 0 or 1) in the game's NVRAM,
+// with its settings' checksum. The game reads it at boot: a change restarts
+// it (the boot is not shown).
+void linkCabinet(Game &s)
+{
+    const int at = profile().linkNvram;
+    if (at < 0 || !s.link.paired()) return;
+    std::vector<uint8_t> &nv = s.machine->nvram();
+    if ((size_t)at >= nv.size() || (nv[at] & 1) == s.link.cabinet()) return;
+    nv[at] = (uint8_t)((nv[at] & ~1) | s.link.cabinet());
+    const int n = profile().settingsSum;
+    if (n > 0 && (size_t)n < nv.size()) {
+        unsigned sum = 0;
+        for (int i = 0; i < n; i++) sum += nv[i];
+        nv[n] = (uint8_t)sum;
+    }
+    saveNvram(nv);
+    s.machine->reset();
+    s.dsp.clearStarts();
+}
+
 // Still in the boot self test: until the game has started its DSPs as many
 // times as its profile says, BOOT_FRAMES at most.
 bool booting(const Game &s)
@@ -490,6 +548,9 @@ void update(vp_game *g, float)
         if (vp_game_time(g) > 8.0) vp_game_quit(g);
         return;
     }
+    // The link (LINK ON): the network, then this cabinet's number.
+    s.link.poll();
+    linkCabinet(s);
     // The CONTROLS page: the game stands still while it is open. TAB, or
     // START 1 and START 2 together, opens it.
     vp_input *in = vp_game_input(g);

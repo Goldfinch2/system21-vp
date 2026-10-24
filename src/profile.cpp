@@ -183,6 +183,7 @@ const Profile PROFILES[] = {
         0,                              // space: no floor
         0, 0, 0,                        // no depth cueing: the planets are seen from far away
         1,                              // its self test ends as it starts the DSPs
+        -1, 0,                          // no link
     },
     {
         "cybsled", "Cyber Sled",
@@ -200,6 +201,7 @@ const Profile PROFILES[] = {
         2048,                           // the arena's squares (its pieces' positions step 800h)
         1800, 14000, 0.15f,             // depth cueing: crisp to six sled lengths, 15% from a third of the arena on
         3,                              // DSPs started at frames 28 and 221 (self test), 262 (the game, after a board reset)
+        0x12, 0x16,                     // the link: cabinet number in byte 12h, the settings' sum in 16h
     },
 };
 

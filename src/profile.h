@@ -87,6 +87,10 @@ struct Profile {
     // its test; Cyber Sled twice during it, then again as the game begins,
     // after resetting the DSP board).
     int bootStarts;
+    // A game that links two cabinets (docs/link.md): the NVRAM byte whose bit
+    // 0 is this cabinet's number, or -1; and its settings' checksum, the sum
+    // of bytes 0 to n-1 in byte n (0: none).
+    int linkNvram, settingsSum;
 };
 
 // The game this package is: from game.ini's [system21] game, Star Blade if
