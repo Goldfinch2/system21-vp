@@ -32,7 +32,11 @@ struct GameFunction {
 // the channel, centered 80h), what moves them.
 struct Stick {
     int channelX, channelY;
-    uint8_t loX, hiX, loY, hiY;  // each axis's range, all the way over (MAME's)
+    uint8_t loX, hiX, loY, hiY;  // each axis's range, all the way over
+    // Where the game keeps its own calibration of each axis in its NVRAM
+    // (minimum, center, maximum: three bytes), or -1. When it is valid, all
+    // the way over is that: the screen's edge on any cabinet.
+    int calX, calY;
     const char *axisX, *axisY;  // the advmame.rc axes: "p1_stickx", "p1_sticky"
     bool upHigh;                // pushed up reads high (Star Blade: up aims up)
     // The functions that push it like a stick when held (springing back to

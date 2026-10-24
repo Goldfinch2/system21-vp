@@ -16,13 +16,15 @@ class State;
 //   03 buttons pressed this frame (same bits)
 //   02 coin switches held: 10 coin 1, 08 coin 2;  05 coins inserted this frame
 //   08-0F analog channels (the profile's sticks, center 80; others FF;
-//         Star Blade 09 X, 0A Y, 50..B0)
+//         Star Blade 09 X, 0A Y: as its NVRAM calibrates them)
 //   19 coins counted on coin 1 (1B on coin 2), shown as CREDIT n/2
 //   16 written by the game: coins to take (a start, a continue); we subtract it
 //   3A/3B/3C boot handshake; 1F/21/23 frame counters
 class Mcu {
 public:
     void setInput(const vp_input *in) { in_ = in; }
+    // The game's NVRAM (one byte an address): its own stick calibration.
+    void setNvram(const std::vector<uint8_t> *nv) { nv_ = nv; }
     // The aim speed (1 normal): the stick's range, the aim keys' and the mouse's pace.
     void setAimSpeed(float k) { aimSpeed_ = k; }
     void reset(uint8_t *dp);
@@ -32,6 +34,7 @@ public:
 
 private:
     const vp_input *in_ = nullptr;
+    const std::vector<uint8_t> *nv_ = nullptr;
     uint8_t prevButtons_ = 0;
     uint8_t coinPending_ = 0;     // coin bits to report as inserted next frame
     int coins_[2] = {};           // coins counted on coin 1, coin 2

@@ -53,11 +53,12 @@ const GameFunction STARBLAD_FUNCTIONS[] = {
 
 // The stick aims (the yoke, a stick, the aim keys, the mouse): its Y
 // turned, so up aims up (the game's low value aims down: a flight stick).
-// Its range: the crosshair reaches the screen's edge at 30h either side of
-// the center (1.0.4's 40h got there at 3/4 of a yoke's travel; MAME's wider
-// range at about half): all the way over is the edge.
+// All the way over is the game's own calibration, read from its NVRAM (the
+// settings record at 150Ch: X min/center/max at 1526h, Y at 1529h; the
+// factory one 01/80/FF), so a full push is the screen's edge whatever the
+// cabinet's NVRAM holds; MAME's range if it is not valid.
 const Stick STARBLAD_STICKS[] = {
-    { 0x09, 0x0a, 0x50, 0xb0, 0x50, 0xb0, "p1_stickx", "p1_sticky", true, "aim_up", "aim_down", "aim_left", "aim_right", true },
+    { 0x09, 0x0a, 0x01, 0xff, 0x18, 0xe8, 0x1526, 0x1529, "p1_stickx", "p1_sticky", true, "aim_up", "aim_down", "aim_left", "aim_right", true },
 };
 
 // The warp: 24 lengths of one streak (and again); the horizon band.
@@ -159,8 +160,8 @@ const FontRange CYBSLED_FONTS[] = {
 // The sled's two sticks (MAME: AN1 / AN3 the left, AN0 / AN2 the right);
 // pushed up reads low, as MAME's keys do it.
 const Stick CYBSLED_STICKS[] = {
-    { 0x0b, 0x09, 0x3f, 0xbf, 0x3f, 0xbf, "p1_stickx", "p1_sticky", false, "left_up", "left_down", "left_left", "left_right", false },
-    { 0x0a, 0x08, 0x3f, 0xbf, 0x3f, 0xbf, "p2_stickx", "p2_sticky", false, "right_up", "right_down", "right_left", "right_right", false },
+    { 0x0b, 0x09, 0x3f, 0xbf, 0x3f, 0xbf, -1, -1, "p1_stickx", "p1_sticky", false, "left_up", "left_down", "left_left", "left_right", false },
+    { 0x0a, 0x08, 0x3f, 0xbf, 0x3f, 0xbf, -1, -1, "p2_stickx", "p2_sticky", false, "right_up", "right_down", "right_left", "right_right", false },
 };
 
 const Profile PROFILES[] = {
