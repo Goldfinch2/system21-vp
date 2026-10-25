@@ -83,6 +83,15 @@ private:
     std::unordered_map<int, Trace> tileTraces_;         // by tile number
     std::unordered_map<int, Label> labels_;             // by the sprite's first tile
     std::unordered_map<uint64_t, Label> keyLabels_;     // by sprite key (two pictures sharing a first tile)
+    // Text of our own on a screen of the game's (O lines in sprites.vec):
+    // shown while a sprite (its first tile or key) is drawn at a place.
+    struct Overlay {
+        int first = -1;
+        uint64_t key = 0;
+        int x = 0, y = 0;               // where the sprite is (its position words, scrolled)
+        std::vector<Line> lines;        // screen pixels (496 x 480)
+    };
+    std::vector<Overlay> overlays_;
     bool showIds_ = false;
     std::vector<std::vector<float>> hides_;
 };

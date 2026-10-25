@@ -130,13 +130,16 @@ Sprites::Sprites(const std::vector<uint8_t> &tiles) : tiles_(tiles), tileCount_(
 // "--": a dash, a straight line across the box; "[]": a rectangle around it);
 // "G <lo hex> <hi hex> <pen> <segments> <cx> <cy> <yscale> <r0> <r1> <a0> <a1>": a gauge;
 // after S or T, "H x0 y0 x1 y1" (a rectangle) or "H x y x y x y ..." (a convex
-// polygon): an area of the picture that hides the 3D (a HUD panel).
+// polygon): an area of the picture that hides the 3D (a HUD panel);
+// "O <first tile hex, or sprite key> <x> <y>", then L lines: text of our own,
+// in screen pixels (496 x 480), while that sprite is drawn at that place.
 void Sprites::load(const std::string &path)
 {
     FILE *f = fopen(path.c_str(), "r");
     if (!f) return;
     Trace *cur = nullptr;
     Label *label = nullptr;
+    int overlay = -1;                   // the overlay L lines go to, or -1
     char line[65536];
     while (fgets(line, sizeof line, f)) {
         char *p = line;
@@ -146,6 +149,7 @@ void Sprites::load(const std::string &path)
             char *start = p + 1, *end;
             while (*start == ' ') start++;
             unsigned long long id = strtoull(start, &end, 16);
+            overlay = -1;
             label = (end - start > 8) ? &keyLabels_[(uint64_t)id] : &labels_[(int)id];
             *label = Label();
             while (*end == ' ' || *end == '\t') end++;
@@ -154,7 +158,21 @@ void Sprites::load(const std::string &path)
             cur = nullptr;
             continue;
         }
-        if (*p == 'L' && label) {
+        if (*p == 'O') {
+            char *start = p + 1, *end;
+            while (*start == ' ') start++;
+            Overlay o;
+            const unsigned long long id = strtoull(start, &end, 16);
+            if (end - start > 8) o.key = (uint64_t)id; else o.first = (int)id;
+            o.x = (int)strtol(end, &end, 10);
+            o.y = (int)strtol(end, &end, 10);
+            overlays_.push_back(o);
+            overlay = (int)overlays_.size() - 1;
+            label = nullptr;
+            cur = nullptr;
+            continue;
+        }
+        if (*p == 'L' && (label || overlay >= 0)) {
             Line l;
             char *end = p + 1;
             l.x0 = strtof(end, &end);
@@ -164,9 +182,11 @@ void Sprites::load(const std::string &path)
             while (*end == ' ') end++;
             l.text = end;
             while (!l.text.empty() && (l.text.back() == '\n' || l.text.back() == '\r')) l.text.pop_back();
-            label->lines.push_back(l);
+            if (label) label->lines.push_back(l);
+            else overlays_[(size_t)overlay].lines.push_back(l);
             continue;
         }
+        if (*p == 'G' || *p == 'S' || *p == 'T') overlay = -1;
         if (*p == 'G') {
             Gauge g;
             char *end = p + 1;
@@ -247,6 +267,7 @@ void Sprites::draw(vp_dvg *d, const Machine &m)
     struct Copy { uint64_t key; int x, y, w, h; };
     Copy copies[256];
     int count = 0;
+    std::vector<bool> overlaid(overlays_.size(), false);    // the overlays to show this frame
     for (int i = 0; i < 256; i++) {
         const uint16_t which = list[i];
         const uint16_t *e = table + ((which & 0xff) << 3);
@@ -282,6 +303,7 @@ void Sprites::draw(vp_dvg *d, const Machine &m)
         int offset = e[1];
         int hpos = sext(e[2] - xscroll, 11);
         int vpos = sext(e[3] - yscroll, 11);
+        const int placeX = hpos, placeY = vpos;     // where it is, before its offsets (the overlays')
         int hsize = e[4], vsize = e[5];
         const uint16_t *f = format + (link << 2);
         int tileIndex = f[0];
@@ -372,6 +394,11 @@ void Sprites::draw(vp_dvg *d, const Machine &m)
             int first = -1;
             for (int t = 0; t < cols * rows && first < 0; t++)
                 if (!(tiles[t] & 0x8000)) first = (tiles[t] + offset) % tileCount_;
+            for (size_t o = 0; o < overlays_.size(); o++) {
+                const Overlay &ov = overlays_[o];
+                if ((ov.key ? ov.key == key : ov.first == first) && ov.x == placeX && ov.y == placeY)
+                    overlaid[o] = true;
+            }
             // The HUD (its marks, frames, labels and the distance): the game
             // unfolds it from a line at the start and squeezes it into the
             // middle at the game over. Drawn only at its full size: it shows
@@ -546,6 +573,18 @@ void Sprites::draw(vp_dvg *d, const Machine &m)
             vp_dvg_reset_clip(d);
         }
         if (which & 0x100) break;
+    }
+    // Our own text, over the screen it goes with: centered in its box, in the
+    // game's text color.
+    vp_dvg_reset_clip(d);
+    const int32_t rgb = profile().textRgb >= 0 ? profile().textRgb : 0xffffff;
+    for (size_t o = 0; o < overlays_.size(); o++) {
+        if (!overlaid[o]) continue;
+        vp_color(d, (uint8_t)(rgb >> 16), (uint8_t)(rgb >> 8), (uint8_t)rgb);
+        for (const Line &l : overlays_[o].lines) {
+            const float base = 4095 - l.base * sy, height = l.height * sy;
+            vp_text_fit(d, l.text.c_str(), (l.x0 + l.x1) * 0.5f * sx, base, height, (l.x1 - l.x0) * sx, VP_TEXT_CENTER);
+        }
     }
     vp_text_font(VP_FONT_HERSHEY);
 }
