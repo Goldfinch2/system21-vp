@@ -95,6 +95,13 @@ void C139::poll()
     deliver();
 }
 
+void C139::pollNetwork()
+{
+    if (!inUse()) return;
+    link_->poll();
+    poll();
+}
+
 // The next packet into the receive ring, once the game has taken the last.
 void C139::deliver()
 {

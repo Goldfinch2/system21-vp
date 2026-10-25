@@ -115,3 +115,11 @@ Checked with two copies on one PC: they pair in about a second, each game
 hears the other (the slave's mask of nodes heard: `10D14Eh`) and keeps
 hearing it; about three packets a frame each way (its own and the other's,
 relayed back round the ring).
+
+The packets are taken eight times a frame (the visible part run in eighths),
+not once at vblank: the arcade's boards heard each other at once, and with a
+frame's delay the cabinet that had not chosen the course could still act on
+its own (a button pressed while it waited took it to a vehicle select of its
+own, and the two never met again). Reproduced with two copies on one PC, a
+script pressing fire on the waiting one; with the packets taken eight times
+a frame, the two meet in the match every time.

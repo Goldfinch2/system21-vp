@@ -25,8 +25,11 @@ public:
 
     // Time passing: a packet being sent goes out after some.
     void advance(int cycles);
-    // Once a frame: packets from the other cabinet into the receive ring.
+    // Packets from the other cabinet into the receive ring (what the link
+    // has); pollNetwork reads the network first. Several times a frame: the
+    // arcade's boards heard each other at once.
     void poll();
+    void pollNetwork();
     // Its interrupt is due (once: then masked until the game re-arms it).
     bool takeInterrupt();
 

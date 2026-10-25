@@ -20,6 +20,7 @@ int g_cpu = 0;
 
 // Lines held (HOLD_LINE) are cleared when the CPU takes the interrupt.
 enum { kClear = 0, kAssert = 1, kHold = 2 };
+const int LINK_POLLS = 8;       // the link's packets taken this many times a frame (and at vblank)
 
 constexpr int kSliceCycles = 256;     // CPUs run in turn ~48000 times a second
 
@@ -196,7 +197,13 @@ void Machine::runFrame()
 {
     const long long frame = (long long)(kCpuClock / kFrameRate + 0.5);
     const long long visible = frame * kVisibleLines / kTotalLines;
-    runCycles((int)visible);
+    // The visible part in pieces, the link's packets taken in between: a
+    // packet reaches the game within a piece of a frame, not a whole one.
+    for (int k = 0; k < LINK_POLLS; k++) {
+        runCycles((int)(visible * (k + 1) / LINK_POLLS - visible * k / LINK_POLLS));
+        c139_.pollNetwork();
+        c139Interrupt();
+    }
 
     // Vertical blank: both C148s interrupt their CPU, the MCU reads the
     // controls, the DSP board does its once-a-frame work.
