@@ -91,7 +91,6 @@ Machine::Machine(Roms &roms, Mcu &mcu, Sound &sound, Dsp &dsp)
     c139_.attach(c139Ram_.data(), nullptr);
     pointram_.assign(0x20000, 0);
     nvram_ = roms.nvram;
-    mcu_.setNvram(&nvram_);
 
     m68k_init();
     for (int i = 0; i < 2; i++) {

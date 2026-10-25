@@ -53,12 +53,20 @@ const GameFunction STARBLAD_FUNCTIONS[] = {
 
 // The stick aims (the yoke, a stick, the aim keys, the mouse): its Y
 // turned, so up aims up (the game's low value aims down: a flight stick).
-// All the way over is the game's own calibration, read from its NVRAM (the
-// settings record at 150Ch: X min/center/max at 1526h, Y at 1529h; the
-// factory one 01/80/FF), so a full push is the screen's edge whatever the
-// cabinet's NVRAM holds; MAME's range if it is not valid.
+// Its range is MAME's: X 01h-FFh, the calibration's (below), all the way
+// over; Y 18h-E8h, as the game stops the aim at 80% of its calibration.
 const Stick STARBLAD_STICKS[] = {
-    { 0x09, 0x0a, 0x01, 0xff, 0x18, 0xe8, 0x1526, 0x1529, "p1_stickx", "p1_sticky", true, "aim_up", "aim_down", "aim_left", "aim_right", true },
+    { 0x09, 0x0a, 0x01, 0xff, 0x18, 0xe8, "p1_stickx", "p1_sticky", true, "aim_up", "aim_down", "aim_left", "aim_right", true },
+};
+
+// Its calibration (the test menu's two corners, then their middle): 16
+// settings records of 20h bytes from 150Ch, the first marked 55h in use (a
+// record that does not read back is marked AAh and the next one used); the
+// ROM's defaults at 694h. Set to the factory one (MAME's NVRAM), 01/80/FF:
+// cabinets' NVRAMs differ (the ROM's defaults are 60/80/A0), and the game
+// scales the stick by it, so the same yoke reached different distances.
+const NvCalibration STARBLAD_CALIBRATION = {
+    0x150c, 0x20, 16, 0x55, 0x694, 0x1a, 0x1d, { 0x01, 0x80, 0xff }, { 0x01, 0x80, 0xff },
 };
 
 // The warp: 24 lengths of one streak (and again); the horizon band.
@@ -160,8 +168,8 @@ const FontRange CYBSLED_FONTS[] = {
 // The sled's two sticks (MAME: AN1 / AN3 the left, AN0 / AN2 the right);
 // pushed up reads low, as MAME's keys do it.
 const Stick CYBSLED_STICKS[] = {
-    { 0x0b, 0x09, 0x3f, 0xbf, 0x3f, 0xbf, -1, -1, "p1_stickx", "p1_sticky", false, "left_up", "left_down", "left_left", "left_right", false },
-    { 0x0a, 0x08, 0x3f, 0xbf, 0x3f, 0xbf, -1, -1, "p2_stickx", "p2_sticky", false, "right_up", "right_down", "right_left", "right_right", false },
+    { 0x0b, 0x09, 0x3f, 0xbf, 0x3f, 0xbf, "p1_stickx", "p1_sticky", false, "left_up", "left_down", "left_left", "left_right", false },
+    { 0x0a, 0x08, 0x3f, 0xbf, 0x3f, 0xbf, "p2_stickx", "p2_sticky", false, "right_up", "right_down", "right_left", "right_right", false },
 };
 
 const Profile PROFILES[] = {
@@ -169,7 +177,7 @@ const Profile PROFILES[] = {
         "starblad", "Star Blade",
         STARBLAD_ROMS, COUNT(STARBLAD_ROMS), "starblad.nv",
         STARBLAD_FUNCTIONS, COUNT(STARBLAD_FUNCTIONS),
-        STARBLAD_STICKS, COUNT(STARBLAD_STICKS),
+        STARBLAD_STICKS, COUNT(STARBLAD_STICKS), &STARBLAD_CALIBRATION,
         { 0xee52, 0xd5df },
         STARBLAD_STREAKS, COUNT(STARBLAD_STREAKS),
         STARBLAD_BACKDROPS, COUNT(STARBLAD_BACKDROPS),
@@ -189,7 +197,7 @@ const Profile PROFILES[] = {
         "cybsled", "Cyber Sled",
         CYBSLED_ROMS, COUNT(CYBSLED_ROMS), "cybsled.nv",
         CYBSLED_FUNCTIONS, COUNT(CYBSLED_FUNCTIONS),
-        CYBSLED_STICKS, COUNT(CYBSLED_STICKS),
+        CYBSLED_STICKS, COUNT(CYBSLED_STICKS), nullptr,
         { 0, 0 },                       // its DSP reports none (captured)
         nullptr, 0, nullptr, 0,         // no models drawn as lines yet
         CYBSLED_FONTS, COUNT(CYBSLED_FONTS),

@@ -143,17 +143,8 @@ void Mcu::vblank(uint8_t *dp)
 
     for (size_t k = 0; k < game.nsticks && k < MAX_STICKS; k++) {
         const Stick &st = game.sticks[k];
-        // The game's own calibration (its NVRAM: min, center, max), when valid;
-        // else the profile's range.
-        auto axis = [&](float v, int cal, int lo, int hi) {
-            if (nv_ && cal >= 0 && (size_t)cal + 2 < nv_->size()) {
-                const int a = (*nv_)[cal], m = (*nv_)[cal + 1], b = (*nv_)[cal + 2];
-                if (a < m && m < b) return stick(v, a, m, b);
-            }
-            return stick(v, lo, 0x80, hi);
-        };
-        dp[st.channelX] = axis(x[k], st.calX, st.loX, st.hiX);
-        dp[st.channelY] = axis(y[k], st.calY, st.loY, st.hiY);
+        dp[st.channelX] = stick(x[k], st.loX, 0x80, st.hiX);
+        dp[st.channelY] = stick(y[k], st.loY, 0x80, st.hiY);
     }
 
     dp[0x1f]++;

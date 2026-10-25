@@ -389,6 +389,31 @@ void loadNvram(std::vector<uint8_t> &nv)
     fclose(f);
 }
 
+// The game's stick calibration set to what the stick's range is made for
+// (profile.h: NvCalibration), in every settings record; an NVRAM with none in
+// use gets one, the ROM's defaults.
+void forceCalibration(std::vector<uint8_t> &nv, const std::vector<uint8_t> &program)
+{
+    const NvCalibration *c = profile().calibration;
+    if (!c || (size_t)(c->first + c->size * c->count) > nv.size()) return;
+    bool inUse = false;
+    for (int r = 0; r < c->count; r++) inUse |= nv[(size_t)(c->first + c->size * r)] == c->inUse;
+    if (!inUse) {
+        nv[(size_t)c->first] = c->inUse;
+        for (int i = 1; i < c->size; i++) {
+            const size_t at = (size_t)(c->defaults + 2 * (i - 1) + 1);
+            nv[(size_t)(c->first + i)] = at < program.size() ? program[at] : 0;
+        }
+    }
+    for (int r = 0; r < c->count; r++) {
+        const int record = c->first + c->size * r;
+        for (int i = 0; i < 3; i++) {
+            nv[(size_t)(record + c->atX + i)] = c->x[i];
+            nv[(size_t)(record + c->atY + i)] = c->y[i];
+        }
+    }
+}
+
 void saveNvram(const std::vector<uint8_t> &nv)
 {
     FILE *f = fopen(nvramPath().c_str(), "wb");
@@ -488,6 +513,7 @@ int init(vp_game *g)
     s.machine = std::make_unique<Machine>(s.roms, s.mcu, s.sound, s.dsp);
     s.machine->setLink(&s.link);
     loadNvram(s.machine->nvram());
+    forceCalibration(s.machine->nvram(), s.roms.main);
     s.render3d = std::make_unique<Render3d>();
     if (s.render3d->open(s.roms.points) != VP_OK) {
         fprintf(stderr, "system21: %s\n", vp_last_error());

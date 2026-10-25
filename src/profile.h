@@ -33,16 +33,26 @@ struct GameFunction {
 struct Stick {
     int channelX, channelY;
     uint8_t loX, hiX, loY, hiY;  // each axis's range, all the way over
-    // Where the game keeps its own calibration of each axis in its NVRAM
-    // (minimum, center, maximum: three bytes), or -1. When it is valid, all
-    // the way over is that: the screen's edge on any cabinet.
-    int calX, calY;
     const char *axisX, *axisY;  // the advmame.rc axes: "p1_stickx", "p1_sticky"
     bool upHigh;                // pushed up reads high (Star Blade: up aims up)
     // The functions that push it like a stick when held (springing back to
     // the center), or nullptr.
     const char *up, *down, *left, *right;
     bool mouse;                 // the mouse or trackball moves it too
+};
+
+// A game that keeps its own stick calibration in its NVRAM, in settings
+// records (several, the first marked in use is the one): at every start the
+// calibration in each record is set to `x` and `y` (minimum, center, maximum),
+// what the stick's range is made for, so a full push is the screen's edge
+// whatever the NVRAM held. An NVRAM with no record in use (none in the ROM
+// zip) gets one, the ROM's defaults with that calibration.
+struct NvCalibration {
+    int first, size, count;     // the records: the first's address, each one's size, how many
+    uint8_t inUse;              // a record's first byte when it is in use
+    int defaults;               // the ROM's default record: its bytes after the mark, as words' low bytes
+    int atX, atY;               // where in a record each axis's three bytes are
+    uint8_t x[3], y[3];
 };
 
 // One of the game's fonts in the sprite ROM: its tiles from `base`, one per
@@ -61,6 +71,7 @@ struct Profile {
     const char *nvram;                  // the factory settings in the zip ("starblad.nv"), or nullptr
     const GameFunction *functions; size_t nfunctions;
     const Stick *sticks; size_t nsticks;
+    const NvCalibration *calibration;   // or nullptr
     uint16_t pointSums[2];              // the point ROM checksums the DSP reports at boot, or 0, 0
     const CodeRange *streaks; size_t nstreaks;     // drawn as their long diagonals
     const CodeRange *backdrops; size_t nbackdrops; // pushed out behind everything, their stripes halved
